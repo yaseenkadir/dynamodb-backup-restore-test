@@ -1,0 +1,107 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template for testing restore process of DynamoDB
+
+Parameters:
+    ReadCapacityUnits:
+        Type: Number
+        Default: 1
+        MinValue: 1
+        MaxValue: 10000
+        Description: Provisioned read capacity units for DynamoDB table
+    WriteCapacityUnits:
+        Type: Number
+        Default: 1
+        MinValue: 1
+        MaxValue: 10000
+        Description: Provisioned write capacity units for DynamoDB table
+    #    AppS3BucketName:
+    #        Type: String
+    #        Description: Name of s3 bucket that contains the app code
+    KeyName:
+        Description: 'Name of an existing EC2 KeyPair to enable SSH access to the instance'
+        Type: 'AWS::EC2::KeyPair::KeyName'
+        ConstraintDescription: 'Can contain only ASCII characters.'
+
+Mappings:
+    AWSRegionArch2AMI:
+        us-east-1:
+            image: 'ami-0ff8a91507f77f867'
+        us-west-2:
+            image: 'ami-a0cfeed8'
+        us-west-1:
+            image: 'ami-0bdb828fd58c52235'
+        eu-west-1:
+            image: 'ami-047bb4163c506cd98'
+        eu-west-2:
+            image: 'ami-f976839e'
+        eu-west-3:
+            image: 'ami-0ebc281c20e89ba4b'
+        eu-central-1:
+            image: 'ami-0233214e13e500f77'
+        ap-northeast-1:
+            image: 'ami-06cd52961ce9f0d85'
+        ap-northeast-2:
+            image: 'ami-0a10b2721688ce9d2'
+        ap-northeast-3:
+            image: 'ami-0d98120a9fb693f07'
+        ap-southeast-1:
+            image: 'ami-08569b978cc4dfa10'
+        ap-southeast-2:
+            image: 'ami-09b42976632b27e9b'
+        ap-south-1:
+            image: 'ami-0912f71e06545ad88'
+        us-east-2:
+            image: 'ami-0b59bfac6be064b78'
+        ca-central-1:
+            image: 'ami-0b18956f'
+        sa-east-1:
+            image: 'ami-07b14488da8ea02a0'
+        cn-north-1:
+            image: 'ami-0a4eaf6c4454eda75'
+        cn-northwest-1:
+            image: 'ami-6b6a7d09'
+
+Resources:
+    TestTable:
+        Type: AWS::DynamoDB::Table
+        Properties:
+            AttributeDefinitions:
+            -   AttributeName: "CustomerId"
+                AttributeType: "S"
+            -   AttributeName: "ItemId"
+                AttributeType: "S"
+            BillingMode: 'PROVISIONED'
+            KeySchema:
+            -   AttributeName: "CustomerId"
+                KeyType: "HASH"
+            -   AttributeName: "ItemId"
+                KeyType: "RANGE"
+            PointInTimeRecoverySpecification:
+                PointInTimeRecoveryEnabled: true
+            ProvisionedThroughput:
+                ReadCapacityUnits: !Ref ReadCapacityUnits
+                WriteCapacityUnits: !Ref WriteCapacityUnits
+            TableName: 'test-table'
+
+    SecurityGroup:
+        Type: 'AWS::EC2::SecurityGroup'
+        Properties:
+            GroupDescription: 'Enable SSH access via port 22'
+            SecurityGroupIngress:
+            -   IpProtocol: 'tcp'
+                FromPort: 22
+                ToPort: 22
+                CidrIp: '0.0.0.0/0'
+
+    Populator:
+        Type: AWS::EC2::Instance
+        Properties:
+            ImageId: !FindInMap [ AWSRegionArch2AMI, !Ref 'AWS::Region', 'image']
+            KeyName: !Ref KeyName
+            InstanceType: 't2.micro'
+            SecurityGroups:
+            - !Ref SecurityGroup
+            Tags:
+                - Key: 'Name'
+                - Value: 'populator'
